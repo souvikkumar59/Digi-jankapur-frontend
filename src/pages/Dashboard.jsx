@@ -79,9 +79,11 @@ function Dashboard() {
     return resolveAvatarUrl(targetUser, 'Classmate');
   };
 
-  const openUserProfile = (userId) => {
-    if (!userId) return;
-    setSelectedUserId(userId);
+  const openUserProfile = (userOrId) => {
+    if (!userOrId) return;
+    const resolvedId = typeof userOrId === 'object' ? (userOrId._id || userOrId.id) : userOrId;
+    if (!resolvedId) return;
+    setSelectedUserId(resolvedId);
     setIsProfileModalOpen(true);
   };
 
@@ -645,7 +647,7 @@ function Dashboard() {
                   <div className="flex items-start justify-between">
                     <button
                       type="button"
-                      onClick={() => openUserProfile(post.user?._id)}
+                      onClick={() => openUserProfile(post.user?._id || post.user)}
                       className="flex items-center space-x-3 text-left group cursor-pointer"
                     >
                       <img
@@ -736,7 +738,7 @@ function Dashboard() {
                               <div className="flex items-center justify-between">
                                 <button
                                   type="button"
-                                  onClick={() => openUserProfile(comment.user?._id)}
+                                  onClick={() => openUserProfile(comment.user?._id || comment.user)}
                                   className="flex items-center space-x-1.5 text-left group cursor-pointer"
                                 >
                                   <span className="text-xs font-black text-stone-900 group-hover:text-amber-700 transition">
