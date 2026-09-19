@@ -17,7 +17,7 @@ function Dashboard() {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.get(`${process.env.BACKEND_URL}/api/posts`, {
+      const response = await axios.get(`${process.env.BACKEND_URL}api/posts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -59,7 +59,7 @@ function Dashboard() {
     if (!newPostContent.trim()) return;
     setIsSubmitting(true);
     try {
-      const response = await axios.post(`${process.env.BACKEND_URL}/api/posts`, { content: newPostContent }, {
+      const response = await axios.post(`${process.env.BACKEND_URL}api/posts`, { content: newPostContent }, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (response.data.success) {
@@ -78,7 +78,7 @@ function Dashboard() {
     if (!text || !text.trim()) return;
     try {
       // Post answer directly. The backend controller handles sending out the live broadcast signals!
-      const response = await axios.post(`https://smart-jankapur-backend.onrender.com//api/posts/${postId}/comment`, { text }, {
+      const response = await axios.post(`https://smart-jankapur-backend.onrender.com/api/posts/${postId}/comment`, { text }, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (response.data.success) {
