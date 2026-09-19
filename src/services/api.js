@@ -56,10 +56,13 @@ export const createSocket = () => {
 // API HELPER FUNCTIONS
 // ==========================================
 
-// --- Auth APIs ---
-export const sendRegistrationOtpApi = (phoneNumber) => api.post('/api/auth/send-otp', { phoneNumber });
-export const loginApi = (credentials) => api.post('/api/auth/login', credentials);
+// --- Auth APIs (Email OTP & Password) ---
+export const sendRegistrationOtpApi = (email) => api.post('/api/auth/send-otp', { email });
 export const registerApi = (userData) => api.post('/api/auth/register', userData);
+export const loginApi = (credentials) => api.post('/api/auth/login', credentials);
+export const sendLoginOtpApi = (email) => api.post('/api/auth/send-login-otp', { email });
+export const loginWithOtpApi = (credentials) => api.post('/api/auth/login-otp', credentials);
+export const sendResetPasswordOtpApi = (email) => api.post('/api/auth/send-reset-otp', { email });
 export const resetPasswordApi = (resetData) => api.post('/api/auth/reset-password', resetData);
 
 // --- Post & Community APIs ---

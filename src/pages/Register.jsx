@@ -3,9 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { registerApi, sendRegistrationOtpApi } from '../services/api';
 
 function Register() {
-  const [step, setStep] = useState(1); // 1: Student Details, 2: OTP Verification
+  const [step, setStep] = useState(1); // 1: Scholar Details, 2: Email OTP Verification
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     phoneNumber: '',
     password: '',
     gender: 'Male',
@@ -13,7 +14,6 @@ function Register() {
     classOrBatch: ''
   });
   const [otp, setOtp] = useState('');
-  const [demoOtp, setDemoOtp] = useState('');
   const [timer, setTimer] = useState(0);
   const [canResend, setCanResend] = useState(false);
   
@@ -24,7 +24,7 @@ function Register() {
 
   const navigate = useNavigate();
 
-  // Countdown timer for OTP resend
+  // 60-second countdown timer for OTP resend
   useEffect(() => {
     let interval = null;
     if (step === 2 && timer > 0) {
@@ -42,7 +42,7 @@ function Register() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Step 1: Validate information and dispatch OTP
+  // Step 1: Validate information and dispatch Email OTP
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
     setError('');
@@ -53,8 +53,9 @@ function Register() {
       setError('Please provide your full legal name.');
       return;
     }
-    if (formData.phoneNumber.length !== 10) {
-      setError('Please provide a valid 10-digit mobile number.');
+    const cleanEmail = formData.email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setError('Please provide a valid email address.');
       return;
     }
     if (formData.password.length < 6) {
@@ -68,30 +69,29 @@ function Register() {
 
     setSendingOtp(true);
     try {
-      const response = await sendRegistrationOtpApi(formData.phoneNumber);
+      const response = await sendRegistrationOtpApi(cleanEmail);
       if (response.data.success) {
-        setDemoOtp(response.data.demoOtp || '');
-        setSuccess(response.data.message || 'OTP dispatched successfully!');
+        setSuccess(response.data.message || `Verification code sent to ${cleanEmail}`);
         setStep(2);
         setTimer(60);
         setCanResend(false);
         setOtp('');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to dispatch verification code. Please try again.');
+      setError(err.response?.data?.message || 'Failed to dispatch verification email. Please check your address.');
     } finally {
       setSendingOtp(false);
     }
   };
 
-  // Step 2: Submit final registration with OTP
+  // Step 2: Submit final registration with Email OTP
   const handleVerifyAndRegister = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
     if (!otp || otp.trim().length !== 6) {
-      setError('Please enter the complete 6-digit verification code.');
+      setError('Please enter the complete 6-digit verification code sent to your email.');
       return;
     }
 
@@ -99,11 +99,12 @@ function Register() {
     try {
       const response = await registerApi({
         ...formData,
+        email: formData.email.trim().toLowerCase(),
         otp: otp.trim()
       });
 
       if (response.data.success) {
-        setSuccess('🎉 Phone verified & enrollment successful! Redirecting to login...');
+        setSuccess('🎉 Email verified & scholar enrollment successful! Redirecting to login...');
         setTimeout(() => {
           navigate('/login');
         }, 1800);
@@ -132,7 +133,7 @@ function Register() {
               </svg>
             ) : (
               <svg className="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             )}
           </div>
@@ -142,12 +143,12 @@ function Register() {
           </span>
 
           <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
-            {step === 1 ? 'Scholar Enrollment' : 'Verify Mobile OTP'}
+            {step === 1 ? 'Scholar Enrollment' : 'Verify Email Address'}
           </h2>
           <p className="text-sm text-stone-500 mt-1">
             {step === 1 
               ? 'Create your profile to access exams, papers & peer community' 
-              : `Enter the 6-digit security code sent to +91 ${formData.phoneNumber}`}
+              : `Enter the 6-digit code sent to ${formData.email}`}
           </p>
 
           {/* Stepper Indicator */}
@@ -197,10 +198,32 @@ function Register() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
+                Email Address (For Verification & Logins)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-stone-400 pointer-events-none">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </span>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="e.g. student@gmail.com"
+                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-stone-200 text-stone-900 placeholder-stone-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition font-medium text-sm"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
-                  Phone Number
+                  Mobile Number (Optional)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-xs font-bold text-stone-400">+91</span>
@@ -208,7 +231,6 @@ function Register() {
                     type="tel"
                     name="phoneNumber"
                     maxLength="10"
-                    required
                     placeholder="10-digit number"
                     className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-stone-200 text-stone-900 placeholder-stone-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition font-medium text-sm"
                     value={formData.phoneNumber}
@@ -291,11 +313,11 @@ function Register() {
               {sendingOtp ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-stone-950 border-t-transparent"></div>
-                  <span>Generating Verification OTP...</span>
+                  <span>Dispatching Email Verification Code...</span>
                 </>
               ) : (
                 <>
-                  <span>Verify Phone with OTP</span>
+                  <span>Verify Email with OTP</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
@@ -306,57 +328,31 @@ function Register() {
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 2: OTP VERIFICATION FORM                                            */}
+        {/* STEP 2: EMAIL OTP VERIFICATION FORM                                      */}
         {/* ========================================================================= */}
         {step === 2 && (
           <form onSubmit={handleVerifyAndRegister} className="space-y-5">
-            {/* Phone badge & edit button */}
+            {/* Email badge & edit button */}
             <div className="flex items-center justify-between p-3.5 bg-stone-50 rounded-2xl border border-stone-200">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-800">
+              <div className="flex items-center space-x-2.5 overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 flex-shrink-0">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Target Number</div>
-                  <div className="text-sm font-extrabold text-stone-800">+91 {formData.phoneNumber}</div>
+                <div className="truncate">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Target Email</div>
+                  <div className="text-sm font-extrabold text-stone-800 truncate">{formData.email}</div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => { setStep(1); setError(''); setSuccess(''); }}
-                className="text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg border border-amber-200 transition"
+                className="text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg border border-amber-200 transition flex-shrink-0 ml-2"
               >
-                Edit Number
+                Edit Email
               </button>
             </div>
-
-            {/* Instant Demo OTP Banner for zero-cost testing */}
-            {demoOtp && (
-              <div className="p-4 bg-gradient-to-br from-amber-50 via-amber-100/50 to-orange-50 rounded-2xl border border-amber-300 text-stone-900 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 flex items-center space-x-1.5">
-                    <span>⚡ Fast-Track Demo Code</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setOtp(demoOtp)}
-                    className="text-xs font-black text-stone-950 bg-amber-400 hover:bg-amber-300 px-2.5 py-1 rounded-md shadow-xs active:scale-95 transition"
-                  >
-                    Auto-Fill
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center space-x-3">
-                  <div className="text-2xl font-black tracking-widest font-mono text-stone-900 bg-white/80 px-3 py-1 rounded-lg border border-amber-200 shadow-inner">
-                    {demoOtp}
-                  </div>
-                  <span className="text-xs text-stone-600 leading-tight">
-                    SMS Gateway simulated. Enter this code to verify immediately.
-                  </span>
-                </div>
-              </div>
-            )}
 
             {/* 6-Digit OTP Field */}
             <div>
@@ -373,7 +369,7 @@ function Register() {
                 className="w-full text-center text-2xl sm:text-3xl font-black tracking-[0.5em] py-3.5 px-4 rounded-2xl border-2 border-stone-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 text-stone-900 placeholder-stone-300 outline-none transition font-mono bg-stone-50/50 focus:bg-white"
               />
               <p className="text-[11px] text-center text-stone-400 mt-2">
-                Valid for 5 minutes. Enter numerals only.
+                Check your email inbox (and spam folder). Valid for 5 minutes.
               </p>
             </div>
 
@@ -394,7 +390,7 @@ function Register() {
                   disabled={sendingOtp}
                   className="text-xs font-bold text-amber-700 hover:text-amber-900 hover:underline transition"
                 >
-                  {sendingOtp ? 'Resending Code...' : 'Didn’t receive the code? Resend OTP'}
+                  {sendingOtp ? 'Resending Code...' : 'Didn’t receive the code? Resend Email'}
                 </button>
               )}
             </div>
@@ -411,7 +407,7 @@ function Register() {
                   <span>Verifying & Finalizing Account...</span>
                 </>
               ) : (
-                <span>Verify & Complete Enrollment</span>
+                <span>Verify Email & Complete Enrollment</span>
               )}
             </button>
 
@@ -443,3 +439,4 @@ function Register() {
 }
 
 export default Register;
+
