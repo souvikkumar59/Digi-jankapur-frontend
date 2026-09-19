@@ -1,6 +1,23 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import {
+  fetchDirectoryApi,
+  fetchProfileAnalyticsApi,
+  updateUserProfileApi,
+  createPaymentCheckoutApi,
+  verifyPaymentApi,
+} from '../services/api';
+import UserProfileModal from '../components/UserProfileModal';
+import { compressImageFile, resolveAvatarUrl } from '../utils/imageUtils';
+
+const presetAvatars = [
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Mimi',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Toby',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Zoe',
+];
 
 // Load Razorpay Checkout Script
 const loadRazorpayScript = () => {
@@ -40,13 +57,49 @@ function Directory() {
   const [editSuccess, setEditSuccess] = useState('');
   const [editLoading, setEditLoading] = useState(false);
 
+  // Student Profile Modal states
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
   // Analytics states
   const [analyticsData, setAnalyticsData] = useState({
     unlocked: false,
     viewers: [],
   });
-
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  // Notification Toast state
+  const [toastMessage, setToastMessage] = useState(null);
+  const [imageProcessing, setImageProcessing] = useState(false);
+
+  const showToast = (message, type = 'success') => {
+    setToastMessage({ message, type });
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const getStudentAvatar = (student) => {
+    return resolveAvatarUrl(student, student?.name || 'Student');
+  };
+
+  // Handle direct file upload from device
+  const handleAvatarFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageProcessing(true);
+    try {
+      const compressed = await compressImageFile(file, 400, 400, 0.85);
+      setEditFormData((prev) => ({
+        ...prev,
+        profilePicture: compressed,
+      }));
+      showToast('Photo selected! Click "Save Scholar Card" to update.');
+    } catch (err) {
+      showToast(err.message || 'Failed to process image.', 'error');
+    } finally {
+      setImageProcessing(false);
+    }
+  };
 
   // Fetch classmates directory
   const fetchDirectory = async () => {
@@ -56,18 +109,10 @@ function Directory() {
     setError('');
 
     try {
-      const response = await axios.get(
-        'https://smart-jankapur-backend.onrender.com/api/users/directory',
-        {
-          params: {
-            schoolName: schoolFilter || undefined,
-            name: searchName || undefined,
-          },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetchDirectoryApi({
+        schoolName: schoolFilter || undefined,
+        name: searchName || undefined,
+      });
 
       if (response.data.success) {
         setStudents(response.data.data || []);
@@ -89,14 +134,7 @@ function Directory() {
     setAnalyticsLoading(true);
 
     try {
-      const response = await axios.get(
-        'https://smart-jankapur-backend.onrender.com/api/users/profile/analytics',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetchProfileAnalyticsApi();
 
       if (response.data.success) {
         setAnalyticsData({
@@ -123,7 +161,7 @@ function Directory() {
     e.preventDefault();
 
     if (!token) {
-      alert('Please login first.');
+      showToast('Please login first.', 'error');
       return;
     }
 
@@ -131,21 +169,10 @@ function Directory() {
     setEditSuccess('');
 
     try {
-      const response = await axios.put(
-        'https://smart-jankapur-backend.onrender.com/api/users/profile',
-        editFormData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await updateUserProfileApi(editFormData);
 
       if (response.data.success) {
-        setEditSuccess(
-          'Your profile card has been updated successfully! 🎉'
-        );
+        setEditSuccess('Your scholar card has been polished successfully! 🎓');
 
         const updatedUserMetadata = {
           ...user,
@@ -158,83 +185,43 @@ function Directory() {
           setIsEditingProfile(false);
           setEditSuccess('');
           fetchDirectory();
-        }, 1500);
+        }, 1200);
       }
     } catch (err) {
-      console.error('Profile update error:', err);
-      alert(
-        err.response?.data?.message || 'Profile update failed.'
-      );
+      showToast(err.response?.data?.message || 'Profile update failed.', 'error');
     } finally {
       setEditLoading(false);
     }
   };
 
-  // Track profile view
-  const handleProfileClickView = async (targetId, classmateName) => {
-    if (!token) {
-      alert('Please login first.');
-      return;
-    }
-
-    try {
-      const response = await axios.post(
-        `https://smart-jankapur-backend.onrender.com/api/users/view/${targetId}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.data.success) {
-        alert(
-          `🎯 Profile view logged! ${classmateName} now has ${
-            response.data.views || 0
-          } profile views.`
-        );
-
-        fetchDirectory();
-      }
-    } catch (err) {
-      console.error('Profile view error:', err);
-      alert(`Waved 👋 at ${classmateName}!`);
-    }
+  const handleStudentCardClick = (studentId) => {
+    setSelectedStudentId(studentId);
+    setIsProfileModalOpen(true);
   };
 
   // Razorpay checkout for unlocking analytics
   const processAnalyticsCheckout = async () => {
     if (!token) {
-      alert('Please login first.');
+      showToast('Please login first.', 'error');
       return;
     }
 
     const isScriptLoaded = await loadRazorpayScript();
 
     if (!isScriptLoaded) {
-      alert('Failed to connect to Razorpay.');
+      showToast('Failed to connect to payment gateway.', 'error');
       return;
     }
 
     try {
-      const session = await axios.post(
-        'https://smart-jankapur-backend.onrender.com/api/payments/checkout',
-        {
-          purchaseType: 'profile_viewer_unlock',
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const session = await createPaymentCheckoutApi({
+        purchaseType: 'profile_viewer_unlock',
+      });
 
       const order = session.data.order;
 
       if (!order) {
-        alert('Payment order was not created.');
+        showToast('Payment order was not created.', 'error');
         return;
       }
 
@@ -242,36 +229,27 @@ function Directory() {
         key: 'rzp_test_TcnnOXpowwNPle',
         amount: order.amount,
         currency: order.currency,
-        name: 'Janakpur Hub',
+        name: 'Jankapur Hub',
         description: 'Unlock Visitor Insights List',
         order_id: order.id,
 
         handler: async function (paymentResponse) {
           try {
-            const verifyResponse = await axios.post(
-              'https://smart-jankapur-backend.onrender.com/api/payments/verify',
-              {
-                razorpay_order_id: paymentResponse.razorpay_order_id,
-                razorpay_payment_id: paymentResponse.razorpay_payment_id,
-                razorpay_signature: paymentResponse.razorpay_signature,
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
+            const verifyResponse = await verifyPaymentApi({
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+            });
 
             if (verifyResponse.data.success) {
-              alert('🎉 Analytics unlocked! Refreshing visitor feed...');
+              showToast('🎉 Analytics unlocked! Refreshing visitor feed...');
               fetchViewerAnalytics();
             } else {
-              alert('Payment verification failed.');
+              showToast('Payment verification failed.', 'error');
             }
           } catch (err) {
             console.error('Payment verification error:', err);
-            alert('Payment verification failed.');
+            showToast('Payment verification failed.', 'error');
           }
         },
 
@@ -281,7 +259,7 @@ function Directory() {
         },
 
         theme: {
-          color: '#4f46e5',
+          color: '#0f243d',
         },
 
         modal: {
@@ -295,9 +273,7 @@ function Directory() {
       razorpay.open();
     } catch (err) {
       console.error('Checkout error:', err);
-      alert(
-        err.response?.data?.message || 'Checkout initiation error.'
-      );
+      showToast(err.response?.data?.message || 'Checkout initiation error.', 'error');
     }
   };
 
@@ -309,21 +285,40 @@ function Directory() {
   };
 
   return (
-    <div className="space-y-6 w-full interstate-fade-in">
+    <div className="space-y-6 w-full animate-fade-in">
+      {/* NOTIFICATION TOAST */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-5 right-5 z-50 py-3 px-5 rounded-2xl shadow-2xl font-bold text-xs flex items-center gap-2 border animate-bounce ${
+            toastMessage.type === 'error'
+              ? 'bg-red-600 text-white border-red-700'
+              : 'bg-slate-900 text-white border-slate-700'
+          }`}
+        >
+          <span>{toastMessage.type === 'error' ? '⚠️' : '✨'}</span>
+          <span>{toastMessage.message}</span>
+        </div>
+      )}
+
       {/* HEADER CONTROLS BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">
-            Classmate Directory 👥
-          </h1>
-          <p className="text-gray-500 text-xs">
-            Search and connect with students across local village nodes.
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              Classmate Directory 👥
+            </h1>
+            <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
+              Scholars
+            </span>
+          </div>
+          <p className="text-slate-500 text-xs mt-0.5 font-medium">
+            Search, connect, and view student cards across village institutions.
           </p>
         </div>
 
         <button
           onClick={() => setIsEditingProfile(!isEditingProfile)}
-          className="px-4 py-2 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow hover:bg-indigo-700 transition self-start sm:self-auto"
+          className="px-4 py-2.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black text-xs rounded-xl shadow-md shadow-amber-500/20 transition self-start sm:self-auto transform active:scale-95"
         >
           {isEditingProfile ? '✕ Close Workspace' : '📝 Customize My Card'}
         </button>
@@ -331,33 +326,36 @@ function Directory() {
 
       {/* PROFILE PANEL DRAWER INPUT LAYOUT */}
       {isEditingProfile && (
-        <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm space-y-4 animate-fade-in">
-          <div className="border-b border-gray-100 pb-2">
-            <h2 className="text-sm font-bold text-indigo-700">
-              Polishing Your Student Card
-            </h2>
-            <p className="text-[11px] text-gray-400">
-              Update your classroom coordinates and write an introductory biography sentence.
-            </p>
+        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-md space-y-4 animate-fade-in">
+          <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-black text-slate-900">
+                Polishing Your Scholar Card 🎓
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Update your class section, bio summary, and upload your profile photo.
+              </p>
+            </div>
+            <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">Live Preview</span>
           </div>
 
           {editSuccess && (
-            <p className="text-green-600 text-xs font-bold bg-green-50 p-2 rounded-xl">
+            <p className="text-emerald-700 text-xs font-bold bg-emerald-50 p-3 rounded-xl border border-emerald-200">
               {editSuccess}
             </p>
           )}
 
           <form
             onSubmit={handleProfileUpdateSubmit}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-bold text-gray-700"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-bold text-slate-700"
           >
             <div>
-              <label className="block mb-1">Class Section / Batch Description</label>
+              <label className="block mb-1 text-slate-700">Class Section / Batch</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Class 10 - Section B"
-                className="w-full p-2.5 bg-gray-50 border rounded-xl outline-none"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900 font-medium"
                 value={editFormData.classOrBatch}
                 onChange={(e) =>
                   setEditFormData({ ...editFormData, classOrBatch: e.target.value })
@@ -365,25 +363,80 @@ function Directory() {
               />
             </div>
 
-            <div>
-              <label className="block mb-1">Avatar Profile Picture URL</label>
-              <input
-                type="url"
-                placeholder="Paste an image link url address..."
-                className="w-full p-2.5 bg-gray-50 border rounded-xl outline-none"
-                value={editFormData.profilePicture}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, profilePicture: e.target.value })
-                }
-              />
+            {/* AVATAR SELECTOR / UPLOADER */}
+            <div className="sm:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center gap-4">
+              <div className="relative shrink-0">
+                <img
+                  src={
+                    editFormData.profilePicture
+                      ? resolveAvatarUrl({ profilePicture: editFormData.profilePicture, name: user?.name })
+                      : resolveAvatarUrl(user)
+                  }
+                  alt="Avatar Preview"
+                  className="w-20 h-20 rounded-2xl object-cover border-2 border-slate-200 shadow-md bg-white"
+                />
+                {imageProcessing && (
+                  <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 text-center sm:text-left space-y-2">
+                <p className="text-xs font-black text-slate-900">Profile Picture / Avatar</p>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Upload a photo from your computer/phone gallery (JPEG, PNG, WEBP), or select an avatar preset below.
+                </p>
+
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start items-center pt-1">
+                  <label className="cursor-pointer px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow transition flex items-center gap-1.5 transform active:scale-95">
+                    <span>📷 Choose Photo from Device</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarFileUpload}
+                    />
+                  </label>
+
+                  {editFormData.profilePicture && (
+                    <button
+                      type="button"
+                      onClick={() => setEditFormData({ ...editFormData, profilePicture: '' })}
+                      className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition"
+                    >
+                      Remove Photo
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* PRESET AVATARS */}
+            <div className="sm:col-span-2">
+              <p className="text-[11px] font-bold text-slate-500 mb-1.5">Or choose an avatar character:</p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {presetAvatars.map((preset, idx) => (
+                  <button
+                    type="button"
+                    key={idx}
+                    onClick={() => setEditFormData({ ...editFormData, profilePicture: preset })}
+                    className={`w-10 h-10 rounded-xl border-2 overflow-hidden transition transform hover:scale-110 shrink-0 bg-white ${
+                      editFormData.profilePicture === preset ? 'border-indigo-600 ring-2 ring-indigo-400' : 'border-slate-200'
+                    }`}
+                  >
+                    <img src={preset} alt="preset" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block mb-1">Personalized Card Bio Summary</label>
+              <label className="block mb-1 text-slate-700">Card Bio Summary</label>
               <textarea
-                maxLength="120"
-                placeholder="Type something about yourself..."
-                className="w-full p-2.5 bg-gray-50 border rounded-xl outline-none h-16 resize-none font-medium"
+                maxLength="140"
+                placeholder="Write a short scholarly summary about yourself..."
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none h-20 resize-none font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900"
                 value={editFormData.bio}
                 onChange={(e) =>
                   setEditFormData({ ...editFormData, bio: e.target.value })
@@ -394,64 +447,61 @@ function Directory() {
             <button
               type="submit"
               disabled={editLoading}
-              className="sm:col-span-2 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition"
+              className="sm:col-span-2 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-md transition disabled:opacity-50"
             >
-              {editLoading
-                ? 'Saving data modifications...'
-                : 'Update My Profile Card Metadata 📤'}
+              {editLoading ? 'Saving changes...' : 'Save Scholar Card 📤'}
             </button>
           </form>
         </div>
       )}
 
-      {/* MY PROFILE CONTAINER PREVIEW BANNER */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-5 rounded-2xl text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      {/* MY PROFILE CONTAINER PREVIEW BANNER - SOLID DARK HIGH-CONTRAST */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-3xl text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-800 relative overflow-hidden">
+        <div className="flex items-center gap-4 relative z-10">
           <img
-            src={
-              user?.profilePicture ||
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                user?.name || 'User'
-              )}&background=random`
-            }
+            src={getStudentAvatar(user)}
             alt="My Profile"
-            className="w-14 h-14 rounded-full border-2 border-white object-cover"
+            className="w-16 h-16 rounded-2xl border-2 border-indigo-400 object-cover shadow-md bg-slate-800"
           />
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-black text-lg">My Profile Card: {user?.name}</h2>
-              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                Me
+              <h2 className="font-black text-xl text-white">{user?.name}</h2>
+              <span className="text-[10px] bg-indigo-500/30 text-indigo-300 border border-indigo-400/40 px-2.5 py-0.5 rounded-full font-black uppercase">
+                You
               </span>
             </div>
-            <p className="text-xs text-indigo-100">
-              {user?.schoolName} • {user?.classOrBatch || 'Class Level Not Pinned'}
+            <p className="text-xs text-slate-300 font-medium mt-0.5">
+              {user?.schoolName} • <span className="text-indigo-400 font-bold">{user?.classOrBatch || 'Class Level Not Set'}</span>
             </p>
-            <p className="text-xs italic text-indigo-200 mt-1">
-              "{user?.bio || "You haven't compiled a biography. Click Customize to write one!"}"
+            <p className="text-xs italic text-slate-300 mt-1 max-w-md">
+              "{user?.bio || "You haven't added a biography. Click Customize to write one!"}"
             </p>
           </div>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/20 text-center self-stretch sm:self-auto flex flex-col justify-center">
-          <p className="text-[10px] text-indigo-100 uppercase tracking-wider font-bold">
-            My Dashboard Metrics
+        <div className="relative z-10 bg-slate-800/90 backdrop-blur-md px-5 py-3 rounded-2xl border border-slate-700 text-center self-stretch sm:self-auto flex flex-col justify-center">
+          <p className="text-[10px] text-indigo-300 uppercase tracking-wider font-black">
+            Card Popularity
           </p>
-          <p className="text-lg font-black mt-0.5">
-            👁️ {analyticsData?.viewers?.length || 0} Profile Views
+          <p className="text-lg font-black mt-0.5 text-white">
+            👁️ {analyticsData?.viewers?.length || 0} Views
           </p>
         </div>
       </div>
 
-      {/* PROFILE VISITORS TIMELINE FEED ROW LIST */}
-      <div className="bg-white p-5 rounded-2xl border shadow-sm space-y-3">
-        <h3 className="text-sm font-bold text-gray-800">Profile Analytics Tracker 📈</h3>
+      {/* PROFILE VISITORS TIMELINE FEED */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black text-slate-900">Profile Visitors & Insights 📈</h3>
+          <span className="text-[10px] font-bold text-slate-400">Classmates who viewed your card</span>
+        </div>
+
         {analyticsLoading ? (
-          <p className="text-xs text-gray-400">Loading profile visitors...</p>
+          <p className="text-xs text-slate-400 font-medium py-2">Checking visitor history...</p>
         ) : (
           <div>
             {analyticsData.viewers.length === 0 ? (
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-400 py-3 bg-slate-50 rounded-2xl text-center font-medium">
                 No classmates have viewed your card profile yet.
               </p>
             ) : (
@@ -459,22 +509,24 @@ function Directory() {
                 {analyticsData.viewers.map((viewer, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl text-xs border"
+                    className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl text-xs border border-slate-200"
                   >
                     <div>
-                      <p className="font-bold text-gray-800">
+                      <p className="font-black text-slate-900">
                         {analyticsData.unlocked
                           ? viewer.viewerId?.name || 'Anonymous Classmate'
                           : 'Classmate Visitor 🤫'}
                       </p>
-                      <p className="text-[11px] text-gray-500">
+                      <p className="text-[11px] text-slate-500 font-medium">
                         {analyticsData.unlocked && viewer.viewerId?.schoolName}
                         {analyticsData.unlocked &&
                           viewer.viewerId?.classOrBatch &&
                           ` • ${viewer.viewerId.classOrBatch}`}
                       </p>
                     </div>
-                    <span className="text-[10px] text-gray-400 font-medium">Recent</span>
+                    <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                      Recent View
+                    </span>
                   </div>
                 ))}
               </div>
@@ -483,7 +535,7 @@ function Directory() {
             {!analyticsData.unlocked && analyticsData.viewers.length > 0 && (
               <button
                 onClick={processAnalyticsCheckout}
-                className="mt-3 w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold rounded-xl shadow hover:opacity-95 transition"
+                className="mt-3 w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-lg transition"
               >
                 Unlock Visitor Names & Profiles for ₹29 💳
               </button>
@@ -492,79 +544,100 @@ function Directory() {
         )}
       </div>
 
-      {/* SEARCH AND FILTER CRITERIA SLOTS */}
+      {/* SEARCH AND FILTER CRITERIA */}
       <div className="flex flex-col sm:flex-row gap-3">
         <input
           type="text"
           placeholder="🔍 Type classmate name to search..."
-          className="flex-1 p-2.5 bg-white border rounded-xl text-xs font-bold outline-none shadow-sm"
+          className="flex-1 p-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none shadow-sm focus:ring-2 focus:ring-indigo-500 text-slate-900 placeholder:text-slate-400"
           value={searchName}
           onChange={(e) => setSearchName(e.target.value)}
         />
         <select
-          className="p-2.5 bg-white border rounded-xl text-xs font-bold text-gray-700 outline-none w-full sm:w-56 shadow-sm"
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none w-full sm:w-64 shadow-sm focus:ring-2 focus:ring-indigo-500"
           value={schoolFilter}
           onChange={(e) => setSchoolFilter(e.target.value)}
         >
           <option value="">All Village Institutions 🏫</option>
-          <option value="Janakpur High School">Janakpur High School</option>
-          <option value="Janakpur Primary School">Janakpur Primary School</option>
+          <option value="Jankapur High School">Jankapur High School</option>
+          <option value="Jankapur Primary School">Jankapur Primary School</option>
           <option value="Bodhi Bikash">Bodhi Bikash</option>
+          <option value="Jankapur High Madrasha">Jankapur High Madrasha</option>
         </select>
       </div>
 
-      {/* COMPILING DIRECTORY GRID LOOP ROW */}
+      {/* DIRECTORY GRID */}
       {loading ? (
-        <p className="text-xs text-gray-500 font-bold text-center py-8">
-          Fetching classmate directory...
-        </p>
+        <div className="flex flex-col items-center justify-center py-12 space-y-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-b-indigo-600"></div>
+          <p className="text-xs text-slate-400 font-bold">Fetching classmate cards...</p>
+        </div>
       ) : error ? (
         <p className="text-xs text-red-500 font-bold text-center py-8">{error}</p>
       ) : students.length === 0 ? (
-        <p className="text-xs text-gray-400 font-bold text-center py-8">
-          No classmates found matching criteria.
-        </p>
+        <div className="bg-white border border-dashed border-slate-200 rounded-3xl p-12 text-center text-slate-400">
+          <div className="text-3xl mb-2">🔍</div>
+          <p className="text-sm font-bold text-slate-700">No classmates found matching criteria.</p>
+          <p className="text-xs mt-1">Try clearing your search query or selecting All Schools.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {students.map((student) => (
-            <button
+            <div
               key={student._id}
-              onClick={() => handleProfileClickView(student._id, student.name)}
-              className="w-full bg-white rounded-2xl border border-gray-100 p-5 flex flex-col items-center text-center relative overflow-hidden shadow-sm hover:shadow-md transition outline-none"
+              onClick={() => handleStudentCardClick(student._id)}
+              className="w-full bg-white rounded-3xl border border-stone-200 p-5 flex flex-col items-center text-center relative overflow-hidden shadow-sm hover:shadow-xl hover:border-amber-400 transition duration-200 cursor-pointer group"
             >
-              <span className="absolute top-2 right-2 bg-indigo-50 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full">
-                Peer
+              <span className="absolute top-3 right-3 bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                {student.role || 'Peer'}
               </span>
 
-              <img
-                src={
-                  student.profilePicture ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    student.name
-                  )}&background=random`
-                }
-                alt={student.name}
-                className="w-16 h-16 rounded-full object-cover border-2 border-indigo-50 mb-3"
-              />
+              <div className="relative mb-3 mt-1">
+                <img
+                  src={getStudentAvatar(student)}
+                  alt={student.name}
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-stone-100 group-hover:border-amber-500 shadow-sm group-hover:scale-105 transition bg-stone-50"
+                />
+              </div>
 
-              <h4 className="font-bold text-sm text-gray-800">{student.name}</h4>
-              <p className="text-xs text-indigo-600 font-medium">
+              <h4 className="font-black text-sm text-stone-900 group-hover:text-amber-700 transition">
+                {student.name}
+              </h4>
+              <p className="text-xs text-amber-700 font-bold mt-0.5">
                 {student.classOrBatch || 'Classmate'}
               </p>
-              <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+              <p className="text-[11px] text-stone-500 font-medium">
                 {student.schoolName}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1 font-mono">
+              <p className="text-[10px] text-stone-400 mt-1 font-mono">
                 ID: {maskPhoneNumber(student.phoneNumber)}
               </p>
 
-              <p className="text-xs text-gray-600 italic mt-3 bg-gray-50 p-2 rounded-xl w-full">
-                "{student.bio || 'Hello! I am using Janakpur Hub.'}"
+              <p className="text-xs text-stone-600 italic mt-3 bg-stone-50 p-2.5 rounded-2xl w-full line-clamp-2 border border-stone-100">
+                "{student.bio || 'Hello! I am using Jankapur Hub.'}"
               </p>
-            </button>
+
+              <button
+                type="button"
+                className="mt-3 w-full py-2 bg-stone-900 hover:bg-gradient-to-r hover:from-amber-500 hover:to-amber-600 hover:text-stone-950 text-white font-black rounded-xl text-xs transition duration-150 flex items-center justify-center gap-1.5 shadow"
+              >
+                <span>View Full Profile</span>
+                <span>↗</span>
+              </button>
+            </div>
           ))}
         </div>
       )}
+
+      {/* STUDENT PROFILE MODAL */}
+      <UserProfileModal
+        userId={selectedStudentId}
+        isOpen={isProfileModalOpen}
+        onClose={() => {
+          setIsProfileModalOpen(false);
+          fetchViewerAnalytics();
+        }}
+      />
     </div>
   );
 }
