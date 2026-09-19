@@ -7,9 +7,17 @@ import { io } from 'socket.io-client';
 const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
 const envUrl = import.meta.env.VITE_BACKEND_URL;
+
+// Guarantee connection to the live service (evn3) even if Vercel still has the old decommissioned service URL configured
+const isOldBackend = envUrl && envUrl.toLowerCase().includes('smart-jankapur-backend.onrender.com') && !envUrl.toLowerCase().includes('smart-jankapur-backend-evn3');
+
+const activeProdUrl = (!envUrl || isOldBackend)
+  ? 'https://smart-jankapur-backend-evn3.onrender.com'
+  : envUrl;
+
 const rawUrl = isLocalhost
   ? (envUrl && envUrl.includes('localhost') ? envUrl : 'http://localhost:5000')
-  : (envUrl || 'https://smart-jankapur-backend-evn3.onrender.com');
+  : activeProdUrl;
 
 export const API_BASE_URL = rawUrl.replace(/\/+$/, '');
 
