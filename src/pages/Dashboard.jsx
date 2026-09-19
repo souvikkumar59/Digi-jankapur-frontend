@@ -11,6 +11,7 @@ import {
   toggleLikePostApi,
 } from '../services/api';
 import UserProfileModal from '../components/UserProfileModal';
+import AvatarLightboxModal from '../components/AvatarLightboxModal';
 import { resolveAvatarUrl, compressImageFile } from '../utils/imageUtils';
 
 const TOPIC_OPTIONS = [
@@ -67,6 +68,7 @@ function Dashboard() {
   // Student Profile Modal states
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [lightboxUser, setLightboxUser] = useState(null);
 
   const currentUserId = user?.id || user?._id;
 
@@ -645,17 +647,29 @@ function Dashboard() {
                 >
                   {/* CARD HEADER */}
                   <div className="flex items-start justify-between">
-                    <button
-                      type="button"
-                      onClick={() => openUserProfile(post.user?._id || post.user)}
-                      className="flex items-center space-x-3 text-left group cursor-pointer"
-                    >
-                      <img
-                        src={getAvatarUrl(post.user)}
-                        alt={post.user?.name || 'Classmate'}
-                        className="w-10 h-10 rounded-full border-2 border-amber-400/80 shadow-sm object-cover group-hover:scale-105 transition"
-                      />
-                      <div>
+                    <div className="flex items-center space-x-3 text-left">
+                      <div
+                        className="relative cursor-pointer group/dp shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxUser(post.user);
+                        }}
+                        title={`Click to view ${post.user?.name || 'Classmate'}'s full profile DP`}
+                      >
+                        <img
+                          src={getAvatarUrl(post.user)}
+                          alt={post.user?.name || 'Classmate'}
+                          className="w-10 h-10 rounded-full border-2 border-amber-400/80 shadow-sm object-cover group-hover/dp:scale-110 group-hover/dp:ring-2 group-hover/dp:ring-amber-400 transition"
+                        />
+                        <span className="absolute -bottom-1 -right-1 bg-amber-400 text-stone-950 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] opacity-0 group-hover/dp:opacity-100 transition shadow">
+                          🔍
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openUserProfile(post.user?._id || post.user)}
+                        className="text-left group cursor-pointer"
+                      >
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="text-sm font-black text-stone-900 group-hover:text-amber-800 transition">
                             {post.user?.name || 'Fellow Scholar'}
@@ -669,8 +683,8 @@ function Dashboard() {
                         <p className="text-[11px] text-stone-500 font-medium">
                           {post.user?.classOrBatch || 'Scholar'} • {post.user?.schoolName || 'Jankapur High School'}
                         </p>
-                      </div>
-                    </button>
+                      </button>
+                    </div>
 
                     <div className="flex flex-col items-end gap-1">
                       <span className="bg-amber-50 text-amber-900 border border-amber-300 text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
@@ -798,6 +812,13 @@ function Dashboard() {
         userId={selectedUserId}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* FULL DP LIGHTBOX VIEWER */}
+      <AvatarLightboxModal
+        user={lightboxUser}
+        isOpen={!!lightboxUser}
+        onClose={() => setLightboxUser(null)}
       />
     </div>
   );

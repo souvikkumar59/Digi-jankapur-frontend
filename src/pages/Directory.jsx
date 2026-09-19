@@ -8,6 +8,7 @@ import {
   verifyPaymentApi,
 } from '../services/api';
 import UserProfileModal from '../components/UserProfileModal';
+import AvatarLightboxModal from '../components/AvatarLightboxModal';
 import { compressImageFile, resolveAvatarUrl } from '../utils/imageUtils';
 
 const presetAvatars = [
@@ -60,6 +61,7 @@ function Directory() {
   // Student Profile Modal states
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [lightboxUser, setLightboxUser] = useState(null);
 
   // Analytics states
   const [analyticsData, setAnalyticsData] = useState({
@@ -592,12 +594,22 @@ function Directory() {
                 {student.role || 'Peer'}
               </span>
 
-              <div className="relative mb-3 mt-1">
+              <div
+                className="relative mb-3 mt-1 group/dp cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxUser(student);
+                }}
+                title={`Click to view ${student.name}'s full profile DP`}
+              >
                 <img
                   src={getStudentAvatar(student)}
                   alt={student.name}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-stone-100 group-hover:border-amber-500 shadow-sm group-hover:scale-105 transition bg-stone-50"
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-stone-100 group-hover/dp:border-amber-500 shadow-sm group-hover/dp:scale-105 transition bg-stone-50"
                 />
+                <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover/dp:opacity-100 transition flex items-center justify-center text-white text-[10px] font-black">
+                  🔍 View DP
+                </div>
               </div>
 
               <h4 className="font-black text-sm text-stone-900 group-hover:text-amber-700 transition">
@@ -637,6 +649,13 @@ function Directory() {
           setIsProfileModalOpen(false);
           fetchViewerAnalytics();
         }}
+      />
+
+      {/* FULL DP LIGHTBOX VIEWER */}
+      <AvatarLightboxModal
+        user={lightboxUser}
+        isOpen={!!lightboxUser}
+        onClose={() => setLightboxUser(null)}
       />
     </div>
   );

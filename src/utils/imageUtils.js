@@ -48,21 +48,38 @@ export const compressImageFile = (file, maxWidth = 400, maxHeight = 400, quality
   });
 };
 
-/**
- * Checks if an avatar string is a valid image (data URL, or valid HTTP image)
- */
-export const resolveAvatarUrl = (user, fallbackName = 'Classmate') => {
-  const pic = user?.profilePicture;
-  if (pic) {
-    if (pic.startsWith('data:image/')) return pic;
+export const resolveAvatarUrl = (userOrPic, fallbackName = 'Classmate') => {
+  if (!userOrPic) {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=f59e0b&color=1c1917&bold=true&rounded=true`;
+  }
+
+  // If userOrPic is a raw image string (data URI, HTTP URL, or local path)
+  if (typeof userOrPic === 'string') {
+    const trimmed = userOrPic.trim();
     if (
-      pic.startsWith('http') &&
-      !pic.includes('cloudinary.com') &&
-      !pic.includes('.html') &&
-      !pic.includes('daily-current-affairs')
+      trimmed.startsWith('data:image/') ||
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.startsWith('/')
     ) {
-      return pic;
+      return trimmed;
     }
   }
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || fallbackName)}&background=6366f1&color=fff&bold=true`;
+
+  // If userOrPic is a user object with profilePicture
+  const pic = userOrPic?.profilePicture;
+  if (pic && typeof pic === 'string') {
+    const trimmed = pic.trim();
+    if (
+      trimmed.startsWith('data:image/') ||
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.startsWith('/')
+    ) {
+      return trimmed;
+    }
+  }
+
+  const name = (typeof userOrPic === 'object' && userOrPic?.name) ? userOrPic.name : fallbackName;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=f59e0b&color=1c1917&bold=true&rounded=true`;
 };

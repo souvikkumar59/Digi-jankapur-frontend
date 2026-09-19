@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { fetchUserProfileApi, recordProfileViewApi } from '../services/api';
 import { resolveAvatarUrl } from '../utils/imageUtils';
+import AvatarLightboxModal from './AvatarLightboxModal';
 
 function UserProfileModal({ userId, isOpen, onClose }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [waved, setWaved] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !userId) {
@@ -109,13 +111,21 @@ function UserProfileModal({ userId, isOpen, onClose }) {
             <>
               {/* AVATAR + BASIC INFO */}
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
-                <div className="relative">
+                <div
+                  className="relative group/avatar cursor-pointer"
+                  onClick={() => setIsLightboxOpen(true)}
+                  title="Click to view full profile picture (DP)"
+                >
                   <img
                     src={getAvatarUrl(profile)}
                     alt={profile?.name}
-                    className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-xl bg-slate-100"
+                    className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-xl bg-slate-100 group-hover/avatar:scale-105 group-hover/avatar:ring-4 group-hover/avatar:ring-amber-400/50 transition duration-200"
                   />
-                  <span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></span>
+                  <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover/avatar:opacity-100 transition duration-200 flex flex-col items-center justify-center text-white text-[10px] font-black">
+                    <span className="text-base">🔍</span>
+                    <span>View DP</span>
+                  </div>
+                  <span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow"></span>
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -216,6 +226,13 @@ function UserProfileModal({ userId, isOpen, onClose }) {
           </button>
         </div>
       </div>
+
+      {/* FULL DP LIGHTBOX VIEWER */}
+      <AvatarLightboxModal
+        user={profile}
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+      />
     </div>
   );
 }
