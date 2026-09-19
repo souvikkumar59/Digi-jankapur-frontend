@@ -57,7 +57,7 @@ function Directory() {
 
     try {
       const response = await axios.get(
-        'http://localhost:5000/api/users/directory',
+        'https://smart-jankapur-backend.onrender.com//api/users/directory',
         {
           params: {
             schoolName: schoolFilter || undefined,
@@ -90,7 +90,7 @@ function Directory() {
 
     try {
       const response = await axios.get(
-        'http://localhost:5000/api/users/profile/analytics',
+        'https://smart-jankapur-backend.onrender.com//api/users/profile/analytics',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -132,7 +132,7 @@ function Directory() {
 
     try {
       const response = await axios.put(
-        'http://localhost:5000/api/users/profile',
+        'https://smart-jankapur-backend.onrender.com//api/users/profile',
         editFormData,
         {
           headers: {
@@ -179,7 +179,7 @@ function Directory() {
 
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/users/view/${targetId}`,
+        `https://smart-jankapur-backend.onrender.com//api/users/view/${targetId}`,
         {},
         {
           headers: {
@@ -219,7 +219,7 @@ function Directory() {
 
     try {
       const session = await axios.post(
-        'http://localhost:5000/api/payments/checkout',
+        'https://smart-jankapur-backend.onrender.com//api/payments/checkout',
         {
           purchaseType: 'profile_viewer_unlock',
         },
@@ -249,7 +249,7 @@ function Directory() {
         handler: async function (paymentResponse) {
           try {
             const verifyResponse = await axios.post(
-              'http://localhost:5000/api/payments/verify',
+              'https://smart-jankapur-backend.onrender.com//api/payments/verify',
               {
                 razorpay_order_id: paymentResponse.razorpay_order_id,
                 razorpay_payment_id: paymentResponse.razorpay_payment_id,

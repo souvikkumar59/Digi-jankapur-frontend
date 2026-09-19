@@ -44,7 +44,7 @@ function Library() {
     setError('');
 
     try {
-      const url = `http://localhost:5000/api/documents?schoolTag=${encodeURIComponent(
+      const url = `https://smart-jankapur-backend.onrender.com//api/documents?schoolTag=${encodeURIComponent(
         schoolTag
       )}&classLevel=${encodeURIComponent(classLevel)}`;
 
@@ -79,7 +79,7 @@ function Library() {
 
     try {
       const response = await axios.post(
-        'http://localhost:5000/api/documents',
+        'https://smart-jankapur-backend.onrender.com//api/documents',
         uploadData,
         {
           headers: {
@@ -125,7 +125,7 @@ function Library() {
 
     try {
       const checkoutSession = await axios.post(
-        'http://localhost:5000/api/payments/checkout',
+        'https://smart-jankapur-backend.onrender.com//api/payments/checkout',
         {
           purchaseType: 'document',
           documentItemId: documentId
@@ -154,7 +154,7 @@ function Library() {
         handler: async function (paymentResponse) {
           try {
             const verificationPayload = await axios.post(
-              'http://localhost:5000/api/payments/verify',
+              'https://smart-jankapur-backend.onrender.com//api/payments/verify',
               {
                 razorpay_order_id: paymentResponse.razorpay_order_id,
                 razorpay_payment_id: paymentResponse.razorpay_payment_id,

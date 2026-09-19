@@ -20,7 +20,7 @@ function Login() {
     try {
       // We pass the absolute URL along with strict content-type headers
       const response = await axios.post(
-        'http://localhost:5000/api/auth/login',
+        'https://smart-jankapur-backend.onrender.com//api/auth/login',
         { phoneNumber, password },
         { headers: { 'Content-Type': 'application/json' } } // Ensures clear JSON handshakes
       );

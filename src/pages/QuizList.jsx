@@ -15,7 +15,7 @@ function QuizList() {
     const fetchQuizzes = async () => {
       try {
         // Automatically fetch quizzes matching the student's logged-in school credentials
-        const response = await axios.get(`http://localhost:5000/api/quizzes?schoolTag=${user.schoolName}`, {
+        const response = await axios.get(`https://smart-jankapur-backend.onrender.com//api/quizzes?schoolTag=${user.schoolName}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {

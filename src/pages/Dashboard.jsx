@@ -17,7 +17,7 @@ function Dashboard() {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.get('http://localhost:5000/api/posts', {
+      const response = await axios.get(`${process.env.BACKEND_URL}/api/posts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -35,7 +35,7 @@ function Dashboard() {
     if (!token) return;
 
     // Connect directly over the air to our running backend socket pipeline port
-    const socket = io('http://localhost:5000');
+    const socket = io('https://smart-jankapur-backend.onrender.com/');
 
     // Fetch original timeline listings on load
     fetchTimelineFeed();
@@ -59,7 +59,7 @@ function Dashboard() {
     if (!newPostContent.trim()) return;
     setIsSubmitting(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/posts', { content: newPostContent }, {
+      const response = await axios.post(`${process.env.BACKEND_URL}/api/posts`, { content: newPostContent }, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (response.data.success) {
@@ -78,7 +78,7 @@ function Dashboard() {
     if (!text || !text.trim()) return;
     try {
       // Post answer directly. The backend controller handles sending out the live broadcast signals!
-      const response = await axios.post(`http://localhost:5000/api/posts/${postId}/comment`, { text }, {
+      const response = await axios.post(`https://smart-jankapur-backend.onrender.com//api/posts/${postId}/comment`, { text }, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (response.data.success) {
