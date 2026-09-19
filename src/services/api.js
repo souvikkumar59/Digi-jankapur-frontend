@@ -57,6 +57,7 @@ export const createSocket = () => {
 // ==========================================
 
 // --- Auth APIs ---
+export const sendRegistrationOtpApi = (phoneNumber) => api.post('/api/auth/send-otp', { phoneNumber });
 export const loginApi = (credentials) => api.post('/api/auth/login', credentials);
 export const registerApi = (userData) => api.post('/api/auth/register', userData);
 export const resetPasswordApi = (resetData) => api.post('/api/auth/reset-password', resetData);
