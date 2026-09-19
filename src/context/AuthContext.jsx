@@ -12,17 +12,32 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        // Master Admin guarantee: Platform founder is always Admin
+        if (parsed?.email === 'souvikkumarbaguli51@gmail.com' || parsed?.phoneNumber === '8116860140') {
+          parsed.role = 'admin';
+          localStorage.setItem('user', JSON.stringify(parsed));
+        }
+        setUser(parsed);
+      } catch (e) {
+        console.error('Failed to parse cached user:', e);
+        setUser(null);
+      }
     }
     setLoading(false); // Stop showing the initial loader once setup check completes
   }, [token]);
 
   // 3. The Login Action Handler
   const login = (userData, userToken) => {
+    let cleanUser = { ...userData };
+    if (cleanUser?.email === 'souvikkumarbaguli51@gmail.com' || cleanUser?.phoneNumber === '8116860140') {
+      cleanUser.role = 'admin';
+    }
     localStorage.setItem('token', userToken);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('user', JSON.stringify(cleanUser));
     setToken(userToken);
-    setUser(userData);
+    setUser(cleanUser);
   };
 
   // 4. The Logout Action Handler
