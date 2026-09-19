@@ -9,7 +9,7 @@ const isLocalhost = typeof window !== 'undefined' && (window.location.hostname =
 const envUrl = import.meta.env.VITE_BACKEND_URL;
 const rawUrl = isLocalhost
   ? (envUrl && envUrl.includes('localhost') ? envUrl : 'http://localhost:5000')
-  : (envUrl || 'https://smart-jankapur-backend.onrender.com');
+  : (envUrl || 'https://smart-jankapur-backend-evn3.onrender.com');
 
 export const API_BASE_URL = rawUrl.replace(/\/+$/, '');
 
