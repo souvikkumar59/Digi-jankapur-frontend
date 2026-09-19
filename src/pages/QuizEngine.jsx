@@ -20,7 +20,7 @@ function QuizEngine() {
   useEffect(() => {
     const fetchExam = async () => {
       try {
-        const response = await axios.get(`https://smart-jankapur-backend.onrender.com//api/quizzes`, {
+        const response = await axios.get(`https://smart-jankapur-backend.onrender.com/api/quizzes`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
@@ -62,7 +62,7 @@ function QuizEngine() {
       }));
 
       const response = await axios.post(
-        `https://smart-jankapur-backend.onrender.com//api/quizzes/${id}/submit`,
+        `https://smart-jankapur-backend.onrender.com/api/quizzes/${id}/submit`,
         { answers: answersPayload },
         { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
       );

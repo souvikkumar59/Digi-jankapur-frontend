@@ -29,7 +29,7 @@ function Register() {
 
     try {
       const response = await axios.post(
-        'https://smart-jankapur-backend.onrender.com//api/auth/register',
+        'https://smart-jankapur-backend.onrender.com/api/auth/register',
         formData,
         { headers: { 'Content-Type': 'application/json' } }
       );
